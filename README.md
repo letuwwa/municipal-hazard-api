@@ -20,7 +20,7 @@ POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
-POSTGRES_DB=fastapi_template
+POSTGRES_DB=mh_db
 
 JWT_SECRET_KEY=<long-random-secret>
 
@@ -31,7 +31,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 ## Database
 Create the database if needed:
 ```bash
-createdb fastapi_template
+createdb mh_db
 ```
 
 Run migrations:
