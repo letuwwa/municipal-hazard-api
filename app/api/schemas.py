@@ -40,3 +40,7 @@ class ReportRead(BaseModel):
     status: ReportStatus
     image_content_type: str | None
     has_image: bool
+
+
+class ReportStatusUpdate(BaseModel):
+    status: ReportStatus

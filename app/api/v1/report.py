@@ -1,12 +1,13 @@
+from uuid import UUID
 from typing import Annotated
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from app.api.deps import get_db
-from app.core.security import get_current_user
 from app.db.models import Report, User
-from app.api.schemas import ReportRead
+from app.core.security import get_current_user, require_admin
+from app.api.schemas import ReportRead, ReportStatusUpdate
 
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -73,3 +74,24 @@ def get_all_reports(db: Session = Depends(get_db)) -> list[Report]:
             .order_by(Report.created_at.desc())
         )
     ]
+
+
+@router.put("/{report_id}", response_model=ReportRead)
+def update_report_status(
+    report_id: UUID,
+    report_in: ReportStatusUpdate,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> Report:
+    report = db.get(Report, report_id)
+    if report is None or not report.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found",
+        )
+
+    report.status = report_in.status
+    db.commit()
+    db.refresh(report)
+
+    return report
