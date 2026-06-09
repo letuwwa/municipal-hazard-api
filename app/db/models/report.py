@@ -1,6 +1,6 @@
 import enum
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import CheckConstraint, Enum, Float, String
+from sqlalchemy import CheckConstraint, Enum, Float, String, LargeBinary
 
 from app.db.models.base_model import BaseModel
 
@@ -48,4 +48,14 @@ class Report(BaseModel):
         Enum(ReportStatus, name="report_status"),
         default=ReportStatus.CREATED,
         nullable=False,
+    )
+
+    image_data: Mapped[bytes | None] = mapped_column(
+        LargeBinary,
+        nullable=True,
+    )
+
+    image_content_type: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
     )
