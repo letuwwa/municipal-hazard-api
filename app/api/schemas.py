@@ -1,7 +1,7 @@
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.db.models import UserRole
+from app.db.models import ReportStatus, UserRole
 
 
 class UserRegister(BaseModel):
@@ -27,3 +27,16 @@ class UserRead(BaseModel):
 class AccessToken(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class ReportRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    description: str
+    latitude: float
+    longitude: float
+    status: ReportStatus
+    image_content_type: str | None
+    has_image: bool

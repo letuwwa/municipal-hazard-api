@@ -59,3 +59,7 @@ class Report(BaseModel):
         String(100),
         nullable=True,
     )
+
+    @property
+    def has_image(self) -> bool:
+        return self.image_data is not None
