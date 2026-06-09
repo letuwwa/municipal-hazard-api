@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from app.api.deps import get_db
-from app.db.models import Report
+from app.core.security import get_current_user
+from app.db.models import Report, User
 from app.api.schemas import ReportRead
 
 
@@ -42,6 +43,7 @@ def create_report(
     latitude: Annotated[float, Form(ge=-90, le=90)],
     longitude: Annotated[float, Form(ge=-180, le=180)],
     image: Annotated[UploadFile | None, File()] = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Report:
     image_data, image_content_type = read_image(image)
