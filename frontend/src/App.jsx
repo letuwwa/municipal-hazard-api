@@ -15,7 +15,7 @@ function App() {
         method: "GET",
         headers: {
           // תדביק פה את הטוקן הזמני שלך שעבד מקודם
-          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0NDVlNjcyYS1hMTc2LTQ2MmYtOThjYS1lODQzMzY2OWUwZWMiLCJyb2xlIjoicmVndWxhciIsImV4cCI6MTc4MTA5MjQ5N30.6ED0uEdbOUMU6tkkcpXh0IdzO80o1JaH8qRlriJ3y9Q" 
+          "Authorization": `Bearer $(import.meta.env.TOKEN)`  
         }
       })
       
@@ -43,7 +43,7 @@ function App() {
       {error && <p style={{ color: 'red', fontWeight: 'bold' }}>שגיאה: {error}</p>}
 
       {/* 2. עטיפת האזור ברכיב ה-Provider של גוגל עם המפתח שלך */}
-      <APIProvider apiKey={'AIzaSyCFoM0CkVDrVMZLrUzfkdekIF3KVs-e2Hs'}>
+      <APIProvider apiKey={import.meta.env.MAP_API}>
         <div style={{ width: '100%', height: '500px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
           
           <Map
