@@ -27,7 +27,8 @@ def create_hazard_report(
     hazard = HazardReport(
         description=report_in.description,
         image_url=report_in.image_url,
-        location=report_in.location.model_dump(),
+        latitude=report_in.latitude,
+        longitude=report_in.longitude,
         user_id=current_user.id, 
     )
 

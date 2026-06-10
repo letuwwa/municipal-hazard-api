@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import Enum, String, Text, Float, JSON, ForeignKey
+from sqlalchemy import Enum, String, Text, Float, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.models.base_model import BaseModel
@@ -30,9 +30,13 @@ class HazardReport(BaseModel):
         nullable=True,
     )
     
-    # example: {"lat": 32.0853, "lng": 34.7818}
-    location: Mapped[dict] = mapped_column(
-        JSON,
+    latitude: Mapped[float] = mapped_column(
+        Float,
+        nullable=False,
+    )
+
+    longitude: Mapped[float] = mapped_column(
+        Float,
         nullable=False,
     )
 

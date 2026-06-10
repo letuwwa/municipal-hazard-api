@@ -1,8 +1,8 @@
-"""add hazard_reports table
+"""Crate hazard_report table
 
-Revision ID: 32775988c530
+Revision ID: 6896c8ca7da2
 Revises: 70a1fd609b42
-Create Date: 2026-06-09 11:47:59.497805
+Create Date: 2026-06-10 10:30:07.848755
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '32775988c530'
+revision: str = '6896c8ca7da2'
 down_revision: Union[str, Sequence[str], None] = '70a1fd609b42'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -25,7 +25,8 @@ def upgrade() -> None:
     sa.Column('user_id', sa.Uuid(), nullable=False),
     sa.Column('description', sa.Text(), nullable=False),
     sa.Column('image_url', sa.String(length=512), nullable=True),
-    sa.Column('location', sa.JSON(), nullable=False),
+    sa.Column('latitude', sa.Float(), nullable=False),
+    sa.Column('longitude', sa.Float(), nullable=False),
     sa.Column('status', sa.Enum('OPEN', 'IN_PROGRESS', 'RESOLVED', name='hazard_status'), nullable=False),
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),

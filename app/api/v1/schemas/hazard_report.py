@@ -2,14 +2,11 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 from app.db.models.hazard_report import HazardStatus 
 
-class LocationCoordinates(BaseModel):
-    lat: float = Field(..., ge=-90, le=90, description="Latitude")
-    lng: float = Field(..., ge=-180, le=180, description="Longitude")
-
 class HazardReportCreate(BaseModel):
     description: str = Field(..., min_length=5, description="Hazard description")
     image_url: str | None = Field(default=None, max_length=512)
-    location: LocationCoordinates 
+    latitude: float = Field(..., ge=-90, le=90, description="Latitude")
+    longitude: float = Field(..., ge=-180, le=180, description="Longitude")
 
 class HazardReportRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -17,6 +14,8 @@ class HazardReportRead(BaseModel):
     id: UUID
     description: str
     image_url: str | None
-    location: LocationCoordinates
+    latitude: float
+    longitude: float    
     status: HazardStatus
     user_id: UUID
+
