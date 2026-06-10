@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import Enum, String, Text, Float, ForeignKey
+from sqlalchemy import Enum, String, Text, Float, ForeignKey, LargeBinary
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.models.base_model import BaseModel
@@ -14,7 +14,6 @@ class HazardStatus(str, enum.Enum):
 class HazardReport(BaseModel):
     __tablename__ = "hazard_reports"
 
-
     user_id: Mapped[UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
@@ -25,8 +24,8 @@ class HazardReport(BaseModel):
         nullable=False,
     )
 
-    image_url: Mapped[str] = mapped_column(
-        String(512),
+    image_bytes: Mapped[bytes] = mapped_column(
+        LargeBinary,
         nullable=True,
     )
     

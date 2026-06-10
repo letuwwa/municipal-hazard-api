@@ -43,7 +43,6 @@ Create a migration after model changes:
 ```bash
 uv run alembic revision --autogenerate -m "describe change"
 ```
-
 ## Run
 ```bash
 uv run fastapi dev app/main.py

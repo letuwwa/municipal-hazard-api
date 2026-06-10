@@ -1,8 +1,8 @@
-"""Crate hazard_report table
+"""fix upload image
 
-Revision ID: 6896c8ca7da2
+Revision ID: b8f518bbbbf2
 Revises: 70a1fd609b42
-Create Date: 2026-06-10 10:30:07.848755
+Create Date: 2026-06-10 13:47:31.749834
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '6896c8ca7da2'
+revision: str = 'b8f518bbbbf2'
 down_revision: Union[str, Sequence[str], None] = '70a1fd609b42'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -24,7 +24,7 @@ def upgrade() -> None:
     op.create_table('hazard_reports',
     sa.Column('user_id', sa.Uuid(), nullable=False),
     sa.Column('description', sa.Text(), nullable=False),
-    sa.Column('image_url', sa.String(length=512), nullable=True),
+    sa.Column('image_bytes', sa.LargeBinary(), nullable=True),
     sa.Column('latitude', sa.Float(), nullable=False),
     sa.Column('longitude', sa.Float(), nullable=False),
     sa.Column('status', sa.Enum('OPEN', 'IN_PROGRESS', 'RESOLVED', name='hazard_status'), nullable=False),

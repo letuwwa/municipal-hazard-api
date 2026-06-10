@@ -1,13 +1,13 @@
 from typing import Annotated
 from uuid import UUID
-
+import base64
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Form, File, UploadFile
 
 from app.api.deps import get_db
 from app.db.models import User, HazardReport, HazardStatus
-from app.api.v1.schemas.hazard_report import HazardReportCreate, HazardReportRead
+from app.api.v1.schemas.hazard_report import HazardReportRead, HazardReportPostResponse
 from app.core.security import get_current_user, require_admin
 
 router = APIRouter(prefix="/hazards", tags=["hazards"])
@@ -15,31 +15,37 @@ router = APIRouter(prefix="/hazards", tags=["hazards"])
 
 @router.post(
     "/",
-    response_model=HazardReportRead,
+    response_model=HazardReportPostResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_hazard_report(
-    report_in: HazardReportCreate,
+async def create_hazard_report(
     current_user: Annotated[User, Depends(get_current_user)],
+    description: str = Form(..., min_length=5),
+    latitude: float = Form(..., ge=-90, le=90),
+    longitude: float = Form(..., ge=-180, le=180),
+    image: UploadFile = File(None), 
     db: Session = Depends(get_db),
 ) -> HazardReport:
    
+    if image:
+        image_data = await image.read()
+
     hazard = HazardReport(
-        description=report_in.description,
-        image_url=report_in.image_url,
-        latitude=report_in.latitude,
-        longitude=report_in.longitude,
+        description=description,
+        image_bytes=image_data, 
+        latitude=latitude,
+        longitude=longitude,
         user_id=current_user.id, 
     )
 
     db.add(hazard)
     db.commit()
     db.refresh(hazard)
-    return hazard
+    return HazardReportPostResponse(id=hazard.id, has_photo=bool(image))
 
 @router.get(
     "/",
-    response_model=list[HazardReportRead],
+    response_model=None,
 )
 def read_all_hazard_reports(
     current_user: Annotated[User, Depends(get_current_user)],
@@ -53,11 +59,23 @@ def read_all_hazard_reports(
         select(HazardReport).where(HazardReport.is_active == True)
     ).all()
     
-    return list(reports)
+    edited_reports = []
+    for report in reports:
+        edited_reports.append(
+            {
+                "id": report.id,
+                "description": report.description,
+                "latitude": report.latitude,
+                "longitude": report.longitude,
+                "image_bytes": base64.b64encode(report.image_bytes).decode("utf-8") if report.image_bytes else None
+            }
+        )
+    
+    return edited_reports
 
 @router.get(
     "/me",
-    response_model=list[HazardReportRead],
+    response_model=None,
 )
 def read_my_hazard_reports(
     current_user: Annotated[User, Depends(get_current_user)],
@@ -69,8 +87,20 @@ def read_my_hazard_reports(
             HazardReport.is_active == True
         )
     ).all()
+
+    edited_reports = []
+    for report in reports:
+        edited_reports.append(
+            {
+                "id": report.id,
+                "description": report.description,
+                "latitude": report.latitude,
+                "longitude": report.longitude,
+                "image_bytes": base64.b64encode(report.image_bytes).decode("utf-8") if report.image_bytes else None
+            }
+        )
     
-    return list(reports)
+    return edited_reports
 
 
 @router.patch(
@@ -98,4 +128,3 @@ def update_hazard_status(
     db.commit()
     db.refresh(hazard)
     return hazard
-
