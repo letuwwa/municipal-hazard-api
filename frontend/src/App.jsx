@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps'
+import { APIProvider, Map, AdvancedMarker, Pin, InfoWindow } from '@vis.gl/react-google-maps'
 import './App.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
@@ -39,7 +39,12 @@ const getImageUrl = (imageBytes) => {
 
 function App() {
   const [hazards, setHazards] = useState([])
+  const [selectedHazardId, setSelectedHazardId] = useState(null)
   const [error, setError] = useState(null)
+
+  const selectedHazard = hazards.find((hazard) => hazard.id === selectedHazardId)
+  const selectedCoordinates = selectedHazard ? getHazardCoordinates(selectedHazard) : null
+  const selectedImageUrl = selectedHazard ? getImageUrl(selectedHazard.image_bytes) : null
 
   useEffect(() => {
     const controller = new AbortController()
@@ -64,6 +69,7 @@ function App() {
 
         const data = await response.json()
         setHazards(Array.isArray(data) ? data : [])
+        setSelectedHazardId(null)
       } catch (err) {
         if (err.name === 'AbortError') return
 
@@ -115,12 +121,49 @@ function App() {
                   key={hazard.id}
                   position={{ lat: coordinates.latitude, lng: coordinates.longitude }}
                   title={hazard.description || 'דיווח על מפגע'}
+                  onClick={() => setSelectedHazardId(hazard.id)}
                 >
                   {/* עיצוב הסיכה עצמה */}
                   <Pin background={'#ef4444'} borderColor={'#b91c1c'} glyphColor={'#ffffff'} />
                 </AdvancedMarker>
               )
             })}
+
+            {selectedHazard && selectedCoordinates && (
+              <InfoWindow
+                position={{ lat: selectedCoordinates.latitude, lng: selectedCoordinates.longitude }}
+                maxWidth={260}
+                onClose={() => setSelectedHazardId(null)}
+                onCloseClick={() => setSelectedHazardId(null)}
+              >
+                <article className="map-preview" dir="rtl">
+                  <button
+                    className="map-preview-close"
+                    type="button"
+                    aria-label="סגור תצוגה מקדימה"
+                    onClick={() => setSelectedHazardId(null)}
+                  >
+                    ×
+                  </button>
+                  <div className="map-preview-image">
+                    {selectedImageUrl ? (
+                      <img
+                        src={selectedImageUrl}
+                        alt={selectedHazard.description || 'תמונת מפגע'}
+                      />
+                    ) : (
+                      <span>אין תמונה</span>
+                    )}
+                  </div>
+                  <div className="map-preview-content">
+                    <h3>{selectedHazard.description || 'דיווח על מפגע'}</h3>
+                    <p>
+                      {selectedCoordinates.latitude.toFixed(6)}, {selectedCoordinates.longitude.toFixed(6)}
+                    </p>
+                  </div>
+                </article>
+              </InfoWindow>
+            )}
 
           </Map>
           
