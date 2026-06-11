@@ -1,10 +1,41 @@
 import { useState, useEffect } from 'react'
 import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps'
+import './App.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
 const MAP_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
 const ACCESS_TOKEN = import.meta.env.VITE_ACCESS_TOKEN
 const MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID ?? 'DEMO_MAP_ID'
+
+const getHazardCoordinates = (hazard) => {
+  const latitude = Number.parseFloat(hazard.latitude ?? hazard.lat)
+  const longitude = Number.parseFloat(hazard.longitude ?? hazard.lng)
+
+  if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
+    return null
+  }
+
+  return { latitude, longitude }
+}
+
+const getImageMimeType = (base64Image) => {
+  if (base64Image.startsWith('/9j/')) return 'image/jpeg'
+  if (base64Image.startsWith('iVBOR')) return 'image/png'
+  if (base64Image.startsWith('R0lGOD')) return 'image/gif'
+  if (base64Image.startsWith('UklGR')) return 'image/webp'
+
+  return 'image/jpeg'
+}
+
+const getImageUrl = (imageBytes) => {
+  if (!imageBytes) return null
+
+  if (imageBytes.startsWith('data:image/')) {
+    return imageBytes
+  }
+
+  return `data:${getImageMimeType(imageBytes)};base64,${imageBytes}`
+}
 
 function App() {
   const [hazards, setHazards] = useState([])
@@ -47,21 +78,23 @@ function App() {
   }, [])
 
   return (
-    <div style={{ padding: '20px', direction: 'rtl', fontFamily: 'sans-serif' }}>
-      <h1>מפת מפגעים עירונית בלייב</h1>
-      <p style={{ color: '#666', marginBottom: '20px' }}>הצגת נתונים מפורט 8000 על גבי גוגל מאפס</p>
+    <main className="app-shell" dir="rtl">
+      <section className="page-header">
+        <h1>מפת מפגעים עירונית בלייב</h1>
+        <p>הצגת נתונים מפורט 8000 על גבי גוגל מאפס</p>
+      </section>
 
-      {error && <p style={{ color: 'red', fontWeight: 'bold' }}>שגיאה: {error}</p>}
+      {error && <p className="alert">שגיאה: {error}</p>}
 
       {!MAP_API_KEY && (
-        <p style={{ color: 'red', fontWeight: 'bold' }}>
+        <p className="alert">
           חסר מפתח Google Maps: יש להגדיר VITE_GOOGLE_MAPS_API_KEY
         </p>
       )}
 
       {/* 2. עטיפת האזור ברכיב ה-Provider של גוגל עם המפתח שלך */}
       <APIProvider apiKey={MAP_API_KEY}>
-        <div style={{ width: '100%', height: '500px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+        <div className="map-frame">
           
           <Map
             defaultCenter={{ lat: 32.0853, lng: 34.7818 }} // נקודת מוצא (תל אביב)
@@ -72,17 +105,15 @@ function App() {
             
             {/* 3. לולאה שרצה על כל המפגעים ומייצרת סיכות על המפה */}
             {hazards.map((hazard) => {
-              // ודא ששמות השדות כאן (lat, lng) תואמים בדיוק למה שחוזר ב-JSON מהבקאנד שלך!
-              const latitude = parseFloat(hazard.latitude || hazard.lat)
-              const longitude = parseFloat(hazard.longitude || hazard.lng)
+              const coordinates = getHazardCoordinates(hazard)
 
               // בדיקת בטיחות: ודא שהנ"צ תקין לפני שמציגים את הסיכה
-              if (isNaN(latitude) || isNaN(longitude)) return null;
+              if (!coordinates) return null;
 
               return (
                 <AdvancedMarker
                   key={hazard.id}
-                  position={{ lat: latitude, lng: longitude }}
+                  position={{ lat: coordinates.latitude, lng: coordinates.longitude }}
                   title={hazard.description || 'דיווח על מפגע'}
                 >
                   {/* עיצוב הסיכה עצמה */}
@@ -96,14 +127,50 @@ function App() {
         </div>
       </APIProvider>
 
-      {/* הצגת ה-JSON המקורי למטה לגיבוי ובקרה */}
-      <details style={{ marginTop: '20px' }}>
-        <summary style={{ cursor: 'pointer', color: '#2563eb', fontWeight: '600' }}>הצג נתוני קלט גולמיים (JSON)</summary>
-        <pre style={{ backgroundColor: '#f3f4f6', padding: '15px', borderRadius: '8px', marginTop: '10px', fontSize: '12px' }}>
-          {JSON.stringify(hazards, null, 2)}
-        </pre>
-      </details>
-    </div>
+      <section className="hazards-section" aria-labelledby="hazards-title">
+        <div className="section-title-row">
+          <h2 id="hazards-title">דיווחי מפגעים</h2>
+          <span>{hazards.length} דיווחים</span>
+        </div>
+
+        {hazards.length > 0 ? (
+          <div className="hazards-grid">
+            {hazards.map((hazard) => {
+              const coordinates = getHazardCoordinates(hazard)
+              const imageUrl = getImageUrl(hazard.image_bytes)
+
+              return (
+                <article className="hazard-card" key={hazard.id}>
+                  <div className="hazard-image">
+                    {imageUrl ? (
+                      <img src={imageUrl} alt={hazard.description || 'תמונת מפגע'} loading="lazy" />
+                    ) : (
+                      <span>אין תמונה</span>
+                    )}
+                  </div>
+
+                  <div className="hazard-content">
+                    <h3>{hazard.description || 'דיווח על מפגע'}</h3>
+                    <dl>
+                      <div>
+                        <dt>קו רוחב</dt>
+                        <dd>{coordinates ? coordinates.latitude.toFixed(6) : 'לא זמין'}</dd>
+                      </div>
+                      <div>
+                        <dt>קו אורך</dt>
+                        <dd>{coordinates ? coordinates.longitude.toFixed(6) : 'לא זמין'}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        ) : (
+          <p className="empty-state">אין כרגע דיווחי מפגעים להצגה.</p>
+        )}
+      </section>
+    </main>
   )
 }
 
