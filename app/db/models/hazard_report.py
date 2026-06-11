@@ -3,7 +3,8 @@ from sqlalchemy import Enum, String, Text, Float, ForeignKey, LargeBinary
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.models.base_model import BaseModel
-from uuid import UUID 
+from uuid import UUID
+
 
 class HazardStatus(str, enum.Enum):
     OPEN = "open"
@@ -28,7 +29,7 @@ class HazardReport(BaseModel):
         LargeBinary,
         nullable=True,
     )
-    
+
     latitude: Mapped[float] = mapped_column(
         Float,
         nullable=False,

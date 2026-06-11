@@ -23,25 +23,26 @@ async def create_hazard_report(
     description: str = Form(..., min_length=5),
     latitude: float = Form(..., ge=-90, le=90),
     longitude: float = Form(..., ge=-180, le=180),
-    image: UploadFile = File(None), 
+    image: UploadFile = File(None),
     db: Session = Depends(get_db),
 ) -> HazardReport:
-   
+
     if image:
         image_data = await image.read()
 
     hazard = HazardReport(
         description=description,
-        image_bytes=image_data, 
+        image_bytes=image_data,
         latitude=latitude,
         longitude=longitude,
-        user_id=current_user.id, 
+        user_id=current_user.id,
     )
 
     db.add(hazard)
     db.commit()
     db.refresh(hazard)
     return HazardReportPostResponse(id=hazard.id, has_photo=bool(image))
+
 
 @router.get(
     "/",
@@ -58,7 +59,7 @@ def read_all_hazard_reports(
     reports = db.scalars(
         select(HazardReport).where(HazardReport.is_active == True)
     ).all()
-    
+
     edited_reports = []
     for report in reports:
         edited_reports.append(
@@ -67,11 +68,14 @@ def read_all_hazard_reports(
                 "description": report.description,
                 "latitude": report.latitude,
                 "longitude": report.longitude,
-                "image_bytes": base64.b64encode(report.image_bytes).decode("utf-8") if report.image_bytes else None
+                "image_bytes": base64.b64encode(report.image_bytes).decode("utf-8")
+                if report.image_bytes
+                else None,
             }
         )
-    
+
     return edited_reports
+
 
 @router.get(
     "/me",
@@ -83,8 +87,7 @@ def read_my_hazard_reports(
 ) -> list[HazardReport]:
     reports = db.scalars(
         select(HazardReport).where(
-            HazardReport.user_id == current_user.id,
-            HazardReport.is_active == True
+            HazardReport.user_id == current_user.id, HazardReport.is_active == True
         )
     ).all()
 
@@ -96,10 +99,12 @@ def read_my_hazard_reports(
                 "description": report.description,
                 "latitude": report.latitude,
                 "longitude": report.longitude,
-                "image_bytes": base64.b64encode(report.image_bytes).decode("utf-8") if report.image_bytes else None
+                "image_bytes": base64.b64encode(report.image_bytes).decode("utf-8")
+                if report.image_bytes
+                else None,
             }
         )
-    
+
     return edited_reports
 
 
@@ -113,11 +118,9 @@ def update_hazard_status(
     current_user: Annotated[User, Depends(require_admin)],
     db: Session = Depends(get_db),
 ) -> HazardReport:
-  
-    hazard = db.scalar(
-        select(HazardReport).where(HazardReport.id == report_id)
-    )
-    
+
+    hazard = db.scalar(select(HazardReport).where(HazardReport.id == report_id))
+
     if hazard is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
