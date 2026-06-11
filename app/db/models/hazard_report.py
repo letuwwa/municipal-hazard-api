@@ -1,9 +1,10 @@
 import enum
-from sqlalchemy import Enum, String, Text, Float, ForeignKey, LargeBinary
+from uuid import UUID
+
+from sqlalchemy import Enum, Float, ForeignKey, LargeBinary, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.models.base_model import BaseModel
-from uuid import UUID
 
 
 class HazardStatus(str, enum.Enum):

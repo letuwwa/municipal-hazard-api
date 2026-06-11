@@ -1,16 +1,34 @@
+import base64
 from typing import Annotated
 from uuid import UUID
-import base64
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from fastapi import APIRouter, Depends, HTTPException, status, Form, File, UploadFile
 
 from app.api.deps import get_db
-from app.db.models import User, HazardReport, HazardStatus
 from app.api.v1.schemas.hazard_report import HazardReportRead, HazardReportPostResponse
 from app.core.security import get_current_user, require_admin
+from app.db.models import HazardReport, HazardStatus, User
 
 router = APIRouter(prefix="/hazards", tags=["hazards"])
+
+
+def serialize_hazard_report(report: HazardReport) -> HazardReportRead:
+    image_bytes = (
+        base64.b64encode(report.image_bytes).decode("utf-8")
+        if report.image_bytes
+        else None
+    )
+    return HazardReportRead(
+        id=report.id,
+        description=report.description,
+        image_bytes=image_bytes,
+        latitude=report.latitude,
+        longitude=report.longitude,
+        status=report.status,
+        user_id=report.user_id,
+    )
 
 
 @router.post(
@@ -23,10 +41,11 @@ async def create_hazard_report(
     description: str = Form(..., min_length=5),
     latitude: float = Form(..., ge=-90, le=90),
     longitude: float = Form(..., ge=-180, le=180),
-    image: UploadFile = File(None),
+    image: UploadFile | None = File(default=None),
     db: Session = Depends(get_db),
-) -> HazardReport:
+) -> HazardReportPostResponse:
 
+    image_data = None
     if image:
         image_data = await image.read()
 
@@ -46,66 +65,39 @@ async def create_hazard_report(
 
 @router.get(
     "/",
-    response_model=None,
+    response_model=list[HazardReportRead],
 )
 def read_all_hazard_reports(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Session = Depends(get_db),
-) -> list[HazardReport]:
+) -> list[HazardReportRead]:
     """
     Get all active hazard reports in the system.
     Accessible by any authenticated user.
     """
     reports = db.scalars(
-        select(HazardReport).where(HazardReport.is_active == True)
+        select(HazardReport).where(HazardReport.is_active.is_(True))
     ).all()
 
-    edited_reports = []
-    for report in reports:
-        edited_reports.append(
-            {
-                "id": report.id,
-                "description": report.description,
-                "latitude": report.latitude,
-                "longitude": report.longitude,
-                "image_bytes": base64.b64encode(report.image_bytes).decode("utf-8")
-                if report.image_bytes
-                else None,
-            }
-        )
-
-    return edited_reports
+    return [serialize_hazard_report(report) for report in reports]
 
 
 @router.get(
     "/me",
-    response_model=None,
+    response_model=list[HazardReportRead],
 )
 def read_my_hazard_reports(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Session = Depends(get_db),
-) -> list[HazardReport]:
+) -> list[HazardReportRead]:
     reports = db.scalars(
         select(HazardReport).where(
-            HazardReport.user_id == current_user.id, HazardReport.is_active == True
+            HazardReport.user_id == current_user.id,
+            HazardReport.is_active.is_(True),
         )
     ).all()
 
-    edited_reports = []
-    for report in reports:
-        edited_reports.append(
-            {
-                "id": report.id,
-                "description": report.description,
-                "latitude": report.latitude,
-                "longitude": report.longitude,
-                "image_bytes": base64.b64encode(report.image_bytes).decode("utf-8")
-                if report.image_bytes
-                else None,
-            }
-        )
-
-    return edited_reports
+    return [serialize_hazard_report(report) for report in reports]
 
 
 @router.patch(
@@ -117,7 +109,7 @@ def update_hazard_status(
     new_status: HazardStatus,
     current_user: Annotated[User, Depends(require_admin)],
     db: Session = Depends(get_db),
-) -> HazardReport:
+) -> HazardReportRead:
 
     hazard = db.scalar(select(HazardReport).where(HazardReport.id == report_id))
 
@@ -130,4 +122,4 @@ def update_hazard_status(
     hazard.status = new_status
     db.commit()
     db.refresh(hazard)
-    return hazard
+    return serialize_hazard_report(hazard)
