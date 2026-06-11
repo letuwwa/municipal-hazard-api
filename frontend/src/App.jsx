@@ -1,38 +1,49 @@
 import { useState, useEffect } from 'react'
 import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
+const MAP_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+const ACCESS_TOKEN = import.meta.env.VITE_ACCESS_TOKEN
+const MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID ?? 'DEMO_MAP_ID'
+
 function App() {
   const [hazards, setHazards] = useState([])
   const [error, setError] = useState(null)
 
-  // 1. הגדרת מזהה מפה ייחודי (חובה עבור AdvancedMarker של גוגל)
-  // אתה יכול להשאיר את ה-DEMO_MAP_ID או לייצר אחד ב-Google Console
-  const MAP_ID = 'DEMO_MAP_ID' 
-
-  const fetchHazards = async () => {
-    try {
-      const response = await fetch('http://127.0.0.1:8000/api/v1/hazards/', {
-        method: "GET",
-        headers: {
-          // תדביק פה את הטוקן הזמני שלך שעבד מקודם
-          "Authorization": `Bearer $(import.meta.env.TOKEN)`  
-        }
-      })
-      
-      if (!response.ok) {
-        throw new Error('שגיאה בקבלת הנתונים מהשרת')
-      }
-      
-      const data = await response.json()
-      setHazards(data)
-    } catch (err) {
-      console.error(err)
-      setError(err.message)
-    }
-  }
-
   useEffect(() => {
+    const controller = new AbortController()
+
+    const fetchHazards = async () => {
+      try {
+        setError(null)
+
+        const headers = ACCESS_TOKEN
+          ? { Authorization: `Bearer ${ACCESS_TOKEN}` }
+          : {}
+
+        const response = await fetch(`${API_BASE_URL}/api/v1/hazards/`, {
+          method: 'GET',
+          headers,
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          throw new Error(`שגיאה בקבלת הנתונים מהשרת (${response.status})`)
+        }
+
+        const data = await response.json()
+        setHazards(Array.isArray(data) ? data : [])
+      } catch (err) {
+        if (err.name === 'AbortError') return
+
+        console.error(err)
+        setError(err.message)
+      }
+    }
+
     fetchHazards()
+
+    return () => controller.abort()
   }, [])
 
   return (
@@ -42,8 +53,14 @@ function App() {
 
       {error && <p style={{ color: 'red', fontWeight: 'bold' }}>שגיאה: {error}</p>}
 
+      {!MAP_API_KEY && (
+        <p style={{ color: 'red', fontWeight: 'bold' }}>
+          חסר מפתח Google Maps: יש להגדיר VITE_GOOGLE_MAPS_API_KEY
+        </p>
+      )}
+
       {/* 2. עטיפת האזור ברכיב ה-Provider של גוגל עם המפתח שלך */}
-      <APIProvider apiKey={import.meta.env.MAP_API}>
+      <APIProvider apiKey={MAP_API_KEY}>
         <div style={{ width: '100%', height: '500px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
           
           <Map
@@ -64,9 +81,9 @@ function App() {
 
               return (
                 <AdvancedMarker
-                  key={hazard.id || hazard._id}
+                  key={hazard.id}
                   position={{ lat: latitude, lng: longitude }}
-                  title={hazard.title || 'דיווח על מפגע'}
+                  title={hazard.description || 'דיווח על מפגע'}
                 >
                   {/* עיצוב הסיכה עצמה */}
                   <Pin background={'#ef4444'} borderColor={'#b91c1c'} glyphColor={'#ffffff'} />
