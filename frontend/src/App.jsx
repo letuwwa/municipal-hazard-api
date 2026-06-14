@@ -68,8 +68,13 @@ function App() {
         }
 
         const data = await response.json()
-        setHazards(Array.isArray(data) ? data : [])
-        setSelectedHazardId(null)
+
+        if (Array.isArray(data)) {
+          const activeHazards = data.filter(hazard => hazard.status !== 'resolved')
+          setHazards(activeHazards)
+        } else {
+          setHazards([])
+        }
       } catch (err) {
         if (err.name === 'AbortError') return
 
@@ -87,7 +92,6 @@ function App() {
     <main className="app-shell" dir="rtl">
       <section className="page-header">
         <h1>מפת מפגעים עירונית בלייב</h1>
-        <p>הצגת נתונים מפורט 8000 על גבי גוגל מאפס</p>
       </section>
 
       {error && <p className="alert">שגיאה: {error}</p>}
