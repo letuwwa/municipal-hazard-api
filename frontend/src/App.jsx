@@ -37,39 +37,55 @@ const getImageUrl = (imageBytes) => {
   return `data:${getImageMimeType(imageBytes)};base64,${imageBytes}`
 }
 
+const initialReportForm = {
+  description: '',
+  latitude: '',
+  longitude: '',
+  image: null,
+}
+
 function App() {
   const [hazards, setHazards] = useState([])
   const [selectedHazardId, setSelectedHazardId] = useState(null)
   const [error, setError] = useState(null)
+  const [reportForm, setReportForm] = useState(initialReportForm)
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null)
+  const [imageInputKey, setImageInputKey] = useState(0)
+  const [submitStatus, setSubmitStatus] = useState(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const selectedHazard = hazards.find((hazard) => hazard.id === selectedHazardId)
   const selectedCoordinates = selectedHazard ? getHazardCoordinates(selectedHazard) : null
   const selectedImageUrl = selectedHazard ? getImageUrl(selectedHazard.image_bytes) : null
 
+  const fetchHazards = async (signal) => {
+    setError(null)
+
+    const headers = ACCESS_TOKEN
+      ? { Authorization: `Bearer ${ACCESS_TOKEN}` }
+      : {}
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/hazards/`, {
+      method: 'GET',
+      headers,
+      signal,
+    })
+
+    if (!response.ok) {
+      throw new Error(`שגיאה בקבלת הנתונים מהשרת (${response.status})`)
+    }
+
+    const data = await response.json()
+    setHazards(Array.isArray(data) ? data : [])
+    setSelectedHazardId(null)
+  }
+
   useEffect(() => {
     const controller = new AbortController()
 
-    const fetchHazards = async () => {
+    const loadHazards = async () => {
       try {
-        setError(null)
-
-        const headers = ACCESS_TOKEN
-          ? { Authorization: `Bearer ${ACCESS_TOKEN}` }
-          : {}
-
-        const response = await fetch(`${API_BASE_URL}/api/v1/hazards/`, {
-          method: 'GET',
-          headers,
-          signal: controller.signal,
-        })
-
-        if (!response.ok) {
-          throw new Error(`שגיאה בקבלת הנתונים מהשרת (${response.status})`)
-        }
-
-        const data = await response.json()
-        setHazards(Array.isArray(data) ? data : [])
-        setSelectedHazardId(null)
+        await fetchHazards(controller.signal)
       } catch (err) {
         if (err.name === 'AbortError') return
 
@@ -78,10 +94,86 @@ function App() {
       }
     }
 
-    fetchHazards()
+    loadHazards()
 
     return () => controller.abort()
   }, [])
+
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
+    }
+  }, [imagePreviewUrl])
+
+  const handleReportChange = (event) => {
+    const { name, value } = event.target
+    setReportForm((currentForm) => ({
+      ...currentForm,
+      [name]: value,
+    }))
+  }
+
+  const handleImageChange = (event) => {
+    const image = event.target.files?.[0] ?? null
+
+    setReportForm((currentForm) => ({
+      ...currentForm,
+      image,
+    }))
+
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
+    setImagePreviewUrl(image ? URL.createObjectURL(image) : null)
+  }
+
+  const handleReportSubmit = async (event) => {
+    event.preventDefault()
+    setSubmitStatus(null)
+
+    if (!ACCESS_TOKEN) {
+      setSubmitStatus({ type: 'error', text: 'חסר טוקן גישה.' })
+      return
+    }
+
+    const latitude = Number.parseFloat(reportForm.latitude)
+    const longitude = Number.parseFloat(reportForm.longitude)
+
+    if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
+      setSubmitStatus({ type: 'error', text: 'יש להזין קואורדינטות תקינות.' })
+      return
+    }
+
+    const formData = new FormData()
+    formData.append('description', reportForm.description.trim())
+    formData.append('latitude', latitude)
+    formData.append('longitude', longitude)
+    if (reportForm.image) formData.append('image', reportForm.image)
+
+    try {
+      setIsSubmitting(true)
+
+      const response = await fetch(`${API_BASE_URL}/api/v1/hazards/`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ACCESS_TOKEN}` },
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error(`שגיאה בשליחת הדיווח (${response.status})`)
+      }
+
+      setReportForm(initialReportForm)
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
+      setImagePreviewUrl(null)
+      setImageInputKey((currentKey) => currentKey + 1)
+      setSubmitStatus({ type: 'success', text: 'הדיווח נוסף בהצלחה.' })
+      await fetchHazards()
+    } catch (err) {
+      console.error(err)
+      setSubmitStatus({ type: 'error', text: err.message })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <main className="app-shell" dir="rtl">
@@ -97,6 +189,85 @@ function App() {
           חסר מפתח Google Maps: יש להגדיר VITE_GOOGLE_MAPS_API_KEY
         </p>
       )}
+
+      <section className="report-panel" aria-labelledby="report-title">
+        <div className="section-title-row">
+          <h2 id="report-title">דיווח חדש</h2>
+        </div>
+
+        <form className="report-form" onSubmit={handleReportSubmit}>
+          <label className="form-field form-field-full">
+            <span>תיאור</span>
+            <textarea
+              name="description"
+              value={reportForm.description}
+              onChange={handleReportChange}
+              minLength={5}
+              required
+              rows={3}
+            />
+          </label>
+
+          <label className="form-field">
+            <span>קו רוחב</span>
+            <input
+              name="latitude"
+              type="number"
+              value={reportForm.latitude}
+              onChange={handleReportChange}
+              min="-90"
+              max="90"
+              step="0.000001"
+              required
+            />
+          </label>
+
+          <label className="form-field">
+            <span>קו אורך</span>
+            <input
+              name="longitude"
+              type="number"
+              value={reportForm.longitude}
+              onChange={handleReportChange}
+              min="-180"
+              max="180"
+              step="0.000001"
+              required
+            />
+          </label>
+
+          <div className="form-field form-field-full">
+            <span>תמונה</span>
+            <label className="image-upload">
+              <input
+                key={imageInputKey}
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+              />
+              <span>{reportForm.image ? reportForm.image.name : 'בחירת תמונה'}</span>
+            </label>
+          </div>
+
+          <div className="image-preview">
+            {imagePreviewUrl ? (
+              <img src={imagePreviewUrl} alt="תצוגה מקדימה" />
+            ) : (
+              <span>אין תמונה</span>
+            )}
+          </div>
+
+          <div className="form-actions">
+            <button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'שולח...' : 'הוספת דיווח'}
+            </button>
+          </div>
+
+          {submitStatus && (
+            <p className={`form-status ${submitStatus.type}`}>{submitStatus.text}</p>
+          )}
+        </form>
+      </section>
 
       {/* 2. עטיפת האזור ברכיב ה-Provider של גוגל עם המפתח שלך */}
       <APIProvider apiKey={MAP_API_KEY}>
